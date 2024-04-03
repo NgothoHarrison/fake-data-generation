@@ -1,38 +1,61 @@
-import tkinter as tk
-from tkinter import scrolledtext
+import psycopg2
 from faker import Faker
+import random
 
 
 # Function to generate random data
 def generate_data():
     fake = Faker()
-    data = ""
-    # Generate random data for 10 records
-    for _ in range(30):
-        name = fake.name()
-        email = fake.email()
-        address = fake.address()
-        phone_number = fake.phone_number()
-        dob = fake.date_of_birth(minimum_age=18, maximum_age=90)
-        # Append the data to the string
-        data += f"Name: {name}, Email: {email}, Address: {address}, Phone Number: {phone_number}, Date of Birth: {dob}\n"
-    # Update the text area with generated data
-    text_area.delete(1.0, tk.END)  # Clear previous data
-    text_area.insert(tk.END, data)
+    full_name = fake.name()
+    dob = fake.date_of_birth(minimum_age=18, maximum_age=90)
+    gender = random.choice(['Male', 'Female'])
+    id_no = fake.random_number(digits=10)
+    district_of_birth = fake.city()
+    division = fake.state()
+    location = fake.street_name()
+    sublocation = fake.street_address()
+    active_warranty = fake.boolean(chance_of_getting_true=50)  # 50% chance of being True
+    photo = psycopg2.Binary(fake.binary(length=random.randint(1000, 5000)))  # Random binary data
+    license_number = fake.random_number(digits=10)
+    return (full_name, dob, gender, id_no, district_of_birth, division, location, sublocation, active_warranty, photo,
+            license_number)
 
 
-# Create a Tkinter window
-window = tk.Tk()
-window.title("Random Data Generator")
+# Function to insert data into the database
+def insert_data():
+    try:
+        # Connect to the PostgreSQL database
+        connection = psycopg2.connect(
+            dbname='project',
+            user='admin',
+            password='mypassword',
+            host='localhost',
+            port='5432'
+        )
+
+        # Create a cursor object
+        cursor = connection.cursor()
+
+        # Generate random data and insert into the info_table
+        data = generate_data()
+        insert_query = """
+            INSERT INTO info_table (full_name, dob, gender, id_no, district_of_birth, division, location, sublocation, active_warranty, photo, license_number)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, data)
+
+        # Commit the transaction
+        connection.commit()
+
+        # Print a success message
+        print("Data inserted into the info_table successfully.")
+
+        # Close the cursor and connection
+        cursor.close()
+        connection.close()
+    except Exception as e:
+        # Print an error message if connection fails
+        print(f"Error connecting to the database: {e}")
 
 
-# Create a button to generate data
-generate_button = tk.Button(window, text="Generate Data", command=generate_data)
-generate_button.pack(pady=10)
-
-# Create a scrolled text area to display generated data
-text_area = scrolledtext.ScrolledText(window, width=160, height=20)
-text_area.pack(padx=10, pady=10)
-
-# Start the Tkinter event loop
-window.mainloop()
+insert_data()
